@@ -213,8 +213,8 @@ test("full plugin flow", async () => {
   const port = (server.address() as any).port;
 
   const harness = createHarness({
-    settings: {
-      serverUrl: `http://127.0.0.1:${port}`,
+    session: {
+      url: `http://127.0.0.1:${port}`,
       username: "me",
       password: "secret",
     },
@@ -233,16 +233,6 @@ test("full plugin flow", async () => {
       imageUrl: "https://www.navidrome.org/favicons/apple-icon-114x114.png",
     });
     assert.deepEqual(plugin.account(), me);
-    assert.equal(last("ping").params.get("u"), "me");
-    assert.equal(last("ping").params.get("v"), "1.16.1");
-    assert.equal(last("ping").params.get("c"), "MyGo Music");
-    assert.equal(last("ping").params.get("f"), "json");
-    assert.equal(
-      last("ping").params.get("t"),
-      createHash("md5")
-        .update("secret" + last("ping").params.get("s"))
-        .digest("hex"),
-    );
 
     const home = await plugin.home();
     assert.equal(home.title, "Home");
@@ -253,6 +243,16 @@ test("full plugin flow", async () => {
     assert.equal(home.sections[0].tracks.length, 2);
     assert.equal(home.sections[0].tracks[0].id, "tr:s1");
     assert.equal(requests.filter((r) => r.method === "getRandomSongs")[0].params.get("genre"), "Rock");
+    assert.equal(last("getRandomSongs").params.get("u"), "me");
+    assert.equal(last("getRandomSongs").params.get("v"), "1.16.1");
+    assert.equal(last("getRandomSongs").params.get("c"), "MyGo Music");
+    assert.equal(last("getRandomSongs").params.get("f"), "json");
+    assert.equal(
+      last("getRandomSongs").params.get("t"),
+      createHash("md5")
+        .update("secret" + last("getRandomSongs").params.get("s"))
+        .digest("hex"),
+    );
     assert.equal(home.sections[1].albums[0].id, "al:al1");
     assert.equal(home.sections[1].albums[0].released, "2024-05-01");
     assert.equal(home.sections[1].albums[0].saved, true);
@@ -456,13 +456,27 @@ test("full plugin flow", async () => {
     assert.equal(last("deletePlaylist").params.get("id"), "pl1");
 
     assert.deepEqual(plugin.account(), me);
+    const helperSpawn = harness.spawns.find((spawn) => spawn.command.startsWith("bin/navidrome-login"));
+    assert.ok(helperSpawn);
+    assert.deepEqual(helperSpawn.args, ["--dir", "/tmp", "--port", "0"]);
+    assert.equal(harness.spawns.filter((spawn) => spawn.command.startsWith("bin/navidrome-login")).length, 1);
+    assert.equal(harness.redirects.length, 1);
+    assert.equal(harness.redirects[0].port, 4601);
+    assert.equal(harness.redirects[0].path, "/navidrome");
+    assert.ok((harness.storage.session as any).url.startsWith("http://127.0.0.1:"));
 
-    plugin.setSetting({ key: "username" });
+    plugin.signOut();
     assert.equal(plugin.account(), null);
     assert.equal(harness.storage.radioPending, undefined);
     assert.equal(harness.storage.radioRecent, undefined);
 
-    await plugin.signIn();
+    // Signing out and straight back in must not be failed by the helper that
+    // stopped: the new one belongs to the new sign-in.
+    const back = await plugin.signIn();
+    assert.deepEqual(back, me);
+    assert.equal(harness.redirects.length, 2);
+    assert.equal(harness.redirects[1].port, 4601);
+
     await plugin.played({ id: "tr:s1" });
     await plugin.stationNext({ id: "rd:__endless__" });
     plugin.signOut();

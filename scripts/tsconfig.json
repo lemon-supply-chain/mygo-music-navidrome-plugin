@@ -1,0 +1,6 @@
+{
+  // Editors only auto-discover files named tsconfig.json, so this directory
+  // gets its own config extending the shared Node tooling project.
+  "extends": "../tsconfig.tools.json",
+  "include": ["**/*.ts"]
+}

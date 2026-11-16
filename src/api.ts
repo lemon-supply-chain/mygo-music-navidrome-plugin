@@ -1,35 +1,34 @@
 import { API_VERSION, CLIENT_NAME, MEDIA_SALT } from "./constants";
-import type { ArtistRef } from "./types";
+import { current } from "./session";
+import type { ArtistRef, Session } from "./types";
 import { fail } from "./utils";
 
 export const tr = (text: string) => host.t(text);
 
-export function setting(key: string) {
-  const value = host.setting(key);
-  return value == null ? "" : String(value).trim();
+export function session(): Session {
+  const value = current();
+  if (!value) throw fail("signIn", tr("Sign in to your Navidrome server."));
+  return value;
+}
+
+export function username() {
+  return session().username;
 }
 
 export function password() {
-  const value = host.setting("password");
-  return value == null ? "" : String(value);
+  return session().password;
 }
 
 export function server() {
-  const value = setting("serverUrl");
-  if (!value) throw fail("setup", tr("Fill in your Navidrome server, username and password in the plugin's settings."));
-  const base = value.replace(/\/+$/, "");
+  const base = session().url.replace(/\/+$/, "");
   return /^https?:\/\//i.test(base) ? base : "http://" + base;
 }
 
 export function authPairs(): [string, string][] {
-  const user = setting("username");
-  const pass = password();
-  if (!user || !pass)
-    throw fail("setup", tr("Fill in your Navidrome server, username and password in the plugin's settings."));
   const salt = Math.random().toString(36).slice(2, 10);
   return [
-    ["u", user],
-    ["t", host.crypto.md5(pass + salt)],
+    ["u", username()],
+    ["t", host.crypto.md5(password() + salt)],
     ["s", salt],
     ["v", API_VERSION],
     ["c", CLIENT_NAME],
@@ -38,7 +37,7 @@ export function authPairs(): [string, string][] {
 
 export function mediaAuthPairs(): [string, string][] {
   return [
-    ["u", setting("username")],
+    ["u", username()],
     ["t", host.crypto.md5(password() + MEDIA_SALT)],
     ["s", MEDIA_SALT],
     ["v", API_VERSION],
@@ -89,7 +88,7 @@ export async function call(method: string, params?: Record<string, unknown>) {
   if (data.status === "failed") {
     const error = data.error || {};
     if (error.code === 40 || error.code === 41) {
-      throw fail("setup", tr("Navidrome refused the username or password."));
+      throw fail("signIn", tr("Navidrome refused the username or password."));
     }
     if (error.code === 70) throw fail("unavailable", tr("Navidrome couldn't find that."));
     throw new Error(error.message || tr("Navidrome refused the request."));

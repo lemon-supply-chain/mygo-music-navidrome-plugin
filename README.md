@@ -15,8 +15,9 @@ repository. Or open:
 mygo-music://install-plugin?repo=OWNER/REPO
 ```
 
-Then fill in the server URL, username and password in the plugin's settings.
-The URL is the Navidrome web address, for example `https://music.example.com`.
+Then sign in: a local page opens in your browser where you add a server, with
+its name, address, username and password. Add as many servers as you like, and
+switch between the saved ones on that same page.
 
 ## What it does
 
@@ -54,32 +55,46 @@ the app's audio cache in Settings. MyGo keeps whatever the server returned as
 the song, including an XML error, so a stale failed response keeps ending in
 EOF until it is removed.
 
-## Settings
+## Signing in
 
-| Setting    | Description                                                   |
-| ---------- | ------------------------------------------------------------- |
-| Server URL | Navidrome base URL, with `http://` or `https://`              |
-| Username   | Navidrome account                                             |
-| Password   | Used for Subsonic token auth, stored in the plugin's settings |
+The plugin starts a small helper binary, `bin/navidrome-login-<platform>`,
+which serves one local page on `127.0.0.1` and prints its URL, plus a free
+callback port, on the first line of stdout. The plugin opens that URL in your
+browser and listens on that port before the page opens. The page signs in with a
+server name (optional), URL, username and password, keeps every saved server in
+`auth.json` in the plugin's data directory, and lists them so a click switches
+to one; each can be edited or removed from that list. Its Done button shows a
+card naming the server in use, tries to close the tab after a second, and hands
+that server back to the plugin through a callback the plugin is waiting on;
+the plugin then closes the helper. The helper has no window of its own.
+
+The helper is written in Rust, in `native/navidrome-login`; `bin/` holds the
+built binaries. Password auth stays local: the plugin signs Subsonic requests
+with `md5(password + salt)` exactly as the page's own check does.
 
 The plugin asks for network access to any host because the server is chosen at
-runtime. Cover art and audio URLs use a fixed token salt so they can be loaded
-by the app directly.
+runtime, and for the helper and ffmpeg in its process permission. Cover art and
+audio URLs use a fixed token salt so they can be loaded by the app directly.
 
 ## Development
 
-The plugin is `plugin.json` plus a single `index.js`; there is nothing to build.
-
 ```bash
-node test/plugin.test.mjs
+pnpm install
+pnpm helper   # builds bin/navidrome-login-<platform> from native/navidrome-login
+pnpm check    # typecheck, lint, format, tests, package
 ```
 
-The test runs the plugin against a mock Subsonic server and checks the mapping.
+`pnpm helper` builds for the machine it runs on. In CI, GitHub Actions builds
+the native helpers for Windows and macOS and packages them into four platform
+release archives. The plugin test runs against a mock Subsonic server, and a mocked
+sign-in helper that answers the callback as the page's Done button would, and
+checks the mapping.
 
 ## Publishing
 
 `plugin.json` must be at the top of a public GitHub repository. The app takes
-the latest release zip (for example `plugin-darwin-arm64.zip`), or the source.
+the latest release zip for its platform (for example `plugin-darwin-arm64.zip`),
+or the source. Zips are made per platform from the binaries in `bin/`.
 Add the `mygo-music-plugin` topic to have it listed on the plugins page.
 
 ## References

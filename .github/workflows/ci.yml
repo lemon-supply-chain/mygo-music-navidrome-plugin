@@ -9,7 +9,49 @@ permissions:
   contents: read
 
 jobs:
+  native:
+    strategy:
+      matrix:
+        include:
+          - os: macos-latest
+            target: aarch64-apple-darwin
+            binary: navidrome-login-darwin-arm64
+            src: navidrome-login
+          - os: macos-latest
+            target: x86_64-apple-darwin
+            binary: navidrome-login-darwin-amd64
+            src: navidrome-login
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+            binary: navidrome-login-windows-amd64.exe
+            src: navidrome-login.exe
+          - os: windows-latest
+            target: aarch64-pc-windows-msvc
+            binary: navidrome-login-windows-arm64.exe
+            src: navidrome-login.exe
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+      - name: Build
+        run: cargo build --release --manifest-path native/navidrome-login/Cargo.toml --target ${{ matrix.target }}
+      - name: Rename binary in target
+        shell: bash
+        run: cp native/navidrome-login/target/${{ matrix.target }}/release/${{ matrix.src }} native/navidrome-login/target/${{ matrix.target }}/release/${{ matrix.binary }}
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: ${{ matrix.binary }}
+          path: native/navidrome-login/target/${{ matrix.target }}/release/${{ matrix.binary }}
+          if-no-files-found: error
+          retention-days: 1
+
   check:
+    needs: native
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -17,6 +59,11 @@ jobs:
         with:
           persist-credentials: false
       - uses: voidzero-dev/setup-vp@v1.22.0
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: navidrome-login-*
+          merge-multiple: true
+          path: bin/
       - run: pnpm install --frozen-lockfile
       - run: pnpm check
       - name: Check for tracked-file changes

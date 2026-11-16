@@ -1,7 +1,7 @@
-import { copyFileSync, mkdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
+import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
-import { build } from "tsdown";
+import { build } from "vite-plus/pack";
 import { pluginFiles, validateMetadata } from "./metadata";
 
 export async function runBuild(root: string = process.cwd()) {
@@ -15,6 +15,18 @@ export async function runBuild(root: string = process.cwd()) {
     const dest = resolve(outPluginDir, rel);
     mkdirSync(dirname(dest), { recursive: true });
     copyFileSync(src, dest);
+  }
+
+  // The sign-in helper rides along, one binary per platform in bin/.
+  const binSource = resolve(root, "bin");
+  if (existsSync(binSource)) {
+    for (const name of readdirSync(binSource)) {
+      const from = resolve(binSource, name);
+      if (!statSync(from).isFile()) continue;
+      const dest = resolve(outPluginDir, "bin", name);
+      mkdirSync(dirname(dest), { recursive: true });
+      copyFileSync(from, dest);
+    }
   }
 
   const builtEntry = resolve(outPluginDir, "index.js");

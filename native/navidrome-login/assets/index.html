@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light dark" />
+    <title>Navidrome</title>
+    <link rel="stylesheet" href="/app.css" />
+  </head>
+  <body>
+    <main class="shell">
+      <header class="head">
+        <span class="mark" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+            <path d="M9 18V6l10-2v12" />
+            <circle cx="6" cy="18" r="3" />
+            <circle cx="16" cy="16" r="3" />
+          </svg>
+        </span>
+        <div class="titles">
+          <h1>Navidrome</h1>
+          <p class="sub" data-i18n="subtitle">Pick a saved server, or add another one.</p>
+        </div>
+        <button class="add" id="add" type="button">
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2.4"
+            stroke-linecap="round"
+            aria-hidden="true"
+          >
+            <path d="M12 5v14M5 12h14" />
+          </svg>
+          <span data-i18n="add">Add server</span>
+        </button>
+      </header>
+
+      <section class="saved" id="saved" hidden>
+        <h2 class="eyebrow" data-i18n="saved">Saved servers</h2>
+        <ul class="list" id="list"></ul>
+      </section>
+
+      <p class="empty" id="empty" hidden data-i18n="empty">No server saved yet.</p>
+
+      <p class="status" id="status" role="status" aria-live="polite"></p>
+
+      <p class="hint" id="hint" data-i18n="hint" hidden>Done hands this server to MyGo Music.</p>
+
+      <button class="finish" id="done" type="button" hidden>
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2.4"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          aria-hidden="true"
+        >
+          <path d="M5 13l4 4L19 7" />
+        </svg>
+        <span data-i18n="done">Done</span>
+      </button>
+
+      <footer class="foot">
+        <p data-i18n="stored">Credentials are kept in auth.json on this device only.</p>
+      </footer>
+    </main>
+
+    <dialog class="modal" id="modal" aria-labelledby="modal-title">
+      <div class="modal-head">
+        <h2 id="modal-title" data-i18n="signin">Sign in to a server</h2>
+        <button class="close" id="close" type="button" aria-label="Close" data-i18n="close">Close</button>
+      </div>
+
+      <form id="form" novalidate>
+        <label class="field">
+          <span class="caption">
+            <span data-i18n="serverName">Server name</span>
+            <i data-i18n="optional">optional</i>
+          </span>
+          <input id="name" type="text" autocomplete="off" spellcheck="false" placeholder="Living room" />
+        </label>
+
+        <label class="field">
+          <span class="caption" data-i18n="url">Server URL</span>
+          <input
+            id="url"
+            type="text"
+            inputmode="url"
+            autocomplete="url"
+            spellcheck="false"
+            placeholder="https://music.example.com"
+          />
+        </label>
+
+        <div class="pair">
+          <label class="field">
+            <span class="caption" data-i18n="username">Username</span>
+            <input id="username" type="text" autocomplete="username" spellcheck="false" />
+          </label>
+          <label class="field">
+            <span class="caption" data-i18n="password">Password</span>
+            <span class="secret">
+              <input id="password" type="password" autocomplete="current-password" />
+              <button class="reveal" id="reveal" type="button" data-i18n="show" aria-label="Show password">Show</button>
+            </span>
+          </label>
+        </div>
+
+        <button class="primary" id="submit" type="submit" data-i18n="connect">Connect</button>
+        <p class="status error" id="error" role="alert"></p>
+        <button class="ghost wide" id="cancel" type="button" data-i18n="cancel">Cancel</button>
+      </form>
+    </dialog>
+
+    <script src="/app.js"></script>
+  </body>
+</html>
