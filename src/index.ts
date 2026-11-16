@@ -1,6 +1,6 @@
 import "./shim";
 
-export { account, setSetting, signIn, signOut } from "./auth";
+export { account, signIn, signOut } from "./auth";
 export { browse } from "./browse";
 export { album, artist } from "./catalog";
 export { home } from "./discovery";

@@ -290,7 +290,7 @@ my-plugin/
 | `host.openURL(url)`                                           | 用浏览器打开                                                                               |
 | `host.signInPrompt({qr, text})`                               | 登录窗口显示二维码/提示                                                                    |
 | `host.waitForRedirect({port, path, timeout, page})`           | 等待浏览器登录回调，需要网络权限                                                           |
-| `host.webSignIn({url, cookiesOf, until, userAgent})`          | 在应用内窗口完成网页登录，返回 `{cookie}`                                                  |
+| `host.webSignIn({url, cookiesOf, until, userAgent})`          | 在应用内窗口完成网页登录，返回 `{cookie}`；`url` 与 `cookiesOf` 必须是 https               |
 | `host.spawn(command, args)`                                   | 启动程序，需要进程权限；返回 `{pid, write, closeStdin, readLine, wait, kill, errorOutput}` |
 
 插件还能使用 JavaScript 标准库、定时器、`fetch`、`URL`、`console`。

@@ -1,4 +1,4 @@
-import { call, coverURL, pack, rawId, setting } from "./api";
+import { call, coverURL, pack, rawId, username } from "./api";
 import { toTrack } from "./catalog";
 import type { Playlist } from "./types";
 
@@ -7,7 +7,7 @@ export function toPlaylist(playlist: any, withTracks?: boolean): Playlist {
     id: pack("pl", playlist.id),
     name: playlist.name,
     trackCount: playlist.songCount || 0,
-    mine: playlist.owner === setting("username"),
+    mine: playlist.owner === username(),
   };
   if (playlist.comment) out.description = playlist.comment;
   if (playlist.owner) out.owner = playlist.owner;

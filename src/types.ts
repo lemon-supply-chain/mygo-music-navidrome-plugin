@@ -16,6 +16,14 @@ export interface HostCrypto {
   md5(text: string): string;
 }
 
+/** Where a sign-in page sends the browser back, and what it is told instead. */
+export interface RedirectOptions {
+  port: number;
+  path: string;
+  timeout: number;
+  page?: string;
+}
+
 export interface Host {
   platform: string;
   arch: string;
@@ -27,7 +35,15 @@ export interface Host {
   t(text: string): string;
   language(): string;
   spawn(command: string, args: string[]): HostProcess;
-  webSignIn?(url: string): Promise<any>;
+  openURL(url: string): void;
+  /** Answers the query of the first request to this path on this port. */
+  waitForRedirect(options: RedirectOptions): Promise<Record<string, string>>;
+  webSignIn?(options: {
+    url: string;
+    cookiesOf: string;
+    until: string[];
+    userAgent?: string;
+  }): Promise<{ cookie: string }>;
 }
 
 declare global {
@@ -38,6 +54,15 @@ export interface Account {
   id: string;
   name: string;
   imageUrl?: string;
+}
+
+/** What the sign-in page reported, kept in plugin storage. */
+export interface Session {
+  id: string;
+  name: string;
+  url: string;
+  username: string;
+  password: string;
 }
 
 export interface ArtistRef {

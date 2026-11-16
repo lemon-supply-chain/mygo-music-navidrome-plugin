@@ -99,3 +99,12 @@ export function streamType(suffix: string) {
 }
 
 export const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+/** Base64url text to UTF-8, for the account the sign-in page hands back. */
+export function base64Text(value: string) {
+  const padded = value.replace(/-/g, "+").replace(/_/g, "/") + "=".repeat((4 - (value.length % 4)) % 4);
+  const binary = atob(padded);
+  return decodeURIComponent(
+    binary.replace(/[\s\S]/g, (char) => "%" + ("0" + char.charCodeAt(0).toString(16)).slice(-2)),
+  );
+}

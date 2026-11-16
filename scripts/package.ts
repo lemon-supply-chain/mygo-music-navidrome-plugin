@@ -5,8 +5,18 @@ import { unzipSync, zipSync } from "fflate";
 import { runBuild } from "./build";
 import { validateMetadata } from "./metadata";
 
-function collectFiles(dir: string, base: string = dir): Record<string, [Uint8Array, { mtime: Date }]> {
-  const result: Record<string, [Uint8Array, { mtime: Date }]> = {};
+type Files = Record<string, [Uint8Array, { mtime: Date }]>;
+
+// The app keeps the executable bit from the archive, so the helper needs one.
+const UNIX = 3;
+const MODE_FILE = { os: UNIX, attrs: ((0o100644 << 16) | 0x20) >>> 0 };
+const MODE_EXEC = { os: UNIX, attrs: ((0o100755 << 16) | 0x20) >>> 0 };
+
+// One archive per platform, named as the app looks for it: plugin-darwin-arm64.zip.
+const HELPER = /^bin\/navidrome-login-(darwin|linux|windows)-(arm64|amd64|x64)(\.exe)?$/;
+
+function collectFiles(dir: string, base: string = dir): Files {
+  const result: Files = {};
   const entries = readdirSync(dir).sort();
   for (const entry of entries) {
     const full = join(dir, entry);
@@ -14,11 +24,37 @@ function collectFiles(dir: string, base: string = dir): Record<string, [Uint8Arr
     if (stat.isDirectory()) {
       Object.assign(result, collectFiles(full, base));
     } else {
-      const rel = relative(base, full);
+      const rel = relative(base, full).split("\\").join("/");
       result[rel] = [new Uint8Array(readFileSync(full)), { mtime: new Date("1980-01-01T00:00:00Z") }];
     }
   }
   return result;
+}
+
+function sorted(files: Files): Files {
+  const out: Files = {};
+  for (const key of Object.keys(files).sort()) out[key] = files[key];
+  return out;
+}
+
+function platformOf(rel: string): string | null {
+  const match = HELPER.exec(rel);
+  if (!match) return null;
+  const arch = match[2] === "x64" ? "amd64" : match[2];
+  return `${match[1]}-${arch}`;
+}
+
+function platformsOf(files: Files): string[] {
+  const found = new Set<string>();
+  for (const rel of Object.keys(files)) {
+    const platform = platformOf(rel);
+    if (platform) found.add(platform);
+  }
+  return [...found].sort();
+}
+
+function sha256(bytes: Uint8Array) {
+  return createHash("sha256").update(bytes).digest("hex");
 }
 
 export async function runPackage(root: string = process.cwd()) {
@@ -26,20 +62,16 @@ export async function runPackage(root: string = process.cwd()) {
 
   await runBuild(root);
   const pluginDir = resolve(root, "dist/plugin");
-  const files1 = collectFiles(pluginDir);
-  const zip1 = zipSync(files1);
-  const hash1 = createHash("sha256").update(zip1).digest("hex");
+  const first = collectFiles(pluginDir);
+  const firstZip = zipSync(first);
 
   await runBuild(root);
-  const files2 = collectFiles(pluginDir);
-  const zip2 = zipSync(files2);
-  const hash2 = createHash("sha256").update(zip2).digest("hex");
-
-  if (hash1 !== hash2) {
-    throw new Error(`Non-deterministic build detected: ${hash1} !== ${hash2}`);
+  const second = zipSync(collectFiles(pluginDir));
+  if (sha256(firstZip) !== sha256(second)) {
+    throw new Error(`Non-deterministic build detected: ${sha256(firstZip)} !== ${sha256(second)}`);
   }
 
-  const unzipped = unzipSync(zip1);
+  const unzipped = unzipSync(firstZip);
   const required = ["index.js", "plugin.json", "locales/zh-CN.json", "README.md"];
   for (const file of required) {
     if (!unzipped[file]) {
@@ -61,17 +93,32 @@ export async function runPackage(root: string = process.cwd()) {
   const releaseDir = resolve(root, "dist/release");
   mkdirSync(releaseDir, { recursive: true });
 
-  const zipName = `${meta.id}-v${meta.version}.zip`;
-  const zipPath = resolve(releaseDir, zipName);
-  writeFileSync(zipPath, zip1);
+  const targets = platformsOf(first);
+  const archives = targets.length > 0 ? targets : [""];
 
-  const shaPath = resolve(releaseDir, `${zipName}.sha256`);
-  writeFileSync(shaPath, `${hash1}  ${zipName}\n`);
+  for (const target of archives) {
+    const files: Files = {};
+    for (const [rel, value] of Object.entries(first)) {
+      const platform = platformOf(rel);
+      if (platform && platform !== target) continue;
+      files[rel] = value;
+    }
+
+    const entries: Record<string, [Uint8Array, { mtime: Date; os: number; attrs: number }]> = {};
+    for (const [rel, [data, options]] of Object.entries(sorted(files))) {
+      const mode = platformOf(rel) ? MODE_EXEC : MODE_FILE;
+      entries[rel] = [data, { mtime: options.mtime, os: mode.os, attrs: mode.attrs }];
+    }
+    const zip = zipSync(entries);
+    const zipName = target ? `plugin-${target}.zip` : `${meta.id}-v${meta.version}.zip`;
+    writeFileSync(resolve(releaseDir, zipName), zip);
+    writeFileSync(resolve(releaseDir, `${zipName}.sha256`), `${sha256(zip)}  ${zipName}\n`);
+  }
 }
 
 if (process.argv[1] && resolve(process.argv[1]) === resolve(process.cwd(), "scripts/package.ts")) {
-  runPackage().catch((err) => {
-    console.error(err);
+  runPackage().catch((error) => {
+    console.error(error);
     process.exit(1);
   });
 }

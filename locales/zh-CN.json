@@ -1,10 +1,4 @@
 {
-  "Server URL": "服务器地址",
-  "Username": "用户名",
-  "Password": "密码",
-  "The address of your Navidrome server, such as https://music.example.com": "你的 Navidrome 地址，例如 https://music.example.com",
-  "Your Navidrome account": "你的 Navidrome 账号",
-  "Used to sign requests to the Subsonic API, and kept in this plugin's settings on this device": "用于签署 Subsonic API 请求，保存在本设备上的插件设置中",
   "Artists": "艺术家",
   "Genres": "流派",
   "Liked": "喜欢的歌曲",
@@ -22,7 +16,6 @@
   "All albums": "全部专辑",
   "Albums": "专辑",
   "Songs": "歌曲",
-  "Fill in your Navidrome server, username and password in the plugin's settings.": "请在插件设置中填写 Navidrome 地址、用户名和密码。",
   "Can't reach your Navidrome server.": "无法连接你的 Navidrome 服务器。",
   "Navidrome answered with an error.": "Navidrome 返回了错误。",
   "Navidrome answered something that isn't a Subsonic response.": "Navidrome 返回的不是 Subsonic 响应。",
@@ -33,5 +26,16 @@
   "That radio station is gone.": "该电台已不存在。",
   "No lyrics for this song.": "这首歌没有歌词。",
   "Install ffmpeg with Homebrew and allow the plugin to start it": "请用 Homebrew 安装 ffmpeg，并允许插件启动它",
-  "the audio didn't start in time": "音频没有及时开始"
+  "the audio didn't start in time": "音频没有及时开始",
+  "Sign in to your Navidrome server.": "请登录你的 Navidrome 服务器。",
+  "The sign-in page was replaced.": "登录页已被替换。",
+  "Signed out.": "已退出登录。",
+  "This build has no sign-in page for this platform.": "此版本没有为当前平台提供登录页。",
+  "The sign-in page closed before a server was chosen.": "登录页在选定服务器之前关闭了。",
+  "The sign-in page didn't open.": "登录页没有打开。",
+  "The sign-in page didn't start.": "登录页没有启动。",
+  "This version of MyGo Music can't finish a sign-in.": "这个版本的 MyGo Music 无法完成登录。",
+  "The sign-in page didn't hand back a server.": "登录页没有交回服务器信息。",
+  "The sign-in page handed back something unreadable.": "登录页交回的内容无法读取。",
+  "The sign-in page handed back something incomplete.": "登录页交回的服务器信息不完整。"
 }
