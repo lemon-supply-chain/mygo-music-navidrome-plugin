@@ -2,6 +2,7 @@ export const API_VERSION = "1.16.1";
 export const CLIENT_NAME = "MyGo Music";
 export const MEDIA_SALT = "mygo-music";
 export const PAGE_SIZE = 50;
+export const SHARED_PLAYLISTS_LIMIT = 20;
 export const ALBUM_PAGE = 30;
 export const RAW_TYPES = ["mp3", "flac", "ogg", "oga", "wav", "m4a", "aac"];
 export const SERVING_AT_MOST = 3;

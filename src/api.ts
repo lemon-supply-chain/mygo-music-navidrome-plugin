@@ -72,6 +72,45 @@ export function mediaURL(method: string, params?: Record<string, unknown>) {
   return urlFor("/rest/" + method + ".view", mediaAuthPairs().concat(pairsOf(params || {})));
 }
 
+export async function nativeLogin() {
+  const current = session();
+  let response: Response;
+  try {
+    response = await fetch(server() + "/auth/login", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ username: current.username, password: current.password }),
+    });
+  } catch (error: any) {
+    throw fail("unavailable", tr("Can't reach your Navidrome server.") + " " + error.message);
+  }
+  if (response.status === 401 || response.status === 403) {
+    throw fail("signIn", tr("Navidrome refused the username or password."));
+  }
+  if (!response.ok) {
+    throw fail("unavailable", tr("Navidrome answered with an error.") + " (" + response.status + ")");
+  }
+  return response.json();
+}
+
+export async function nativeList(token: string, path: string, params?: Record<string, unknown>): Promise<any[]> {
+  let response: Response;
+  try {
+    response = await fetch(urlFor(path, pairsOf(params || {})), {
+      headers: { accept: "application/json", "X-ND-Authorization": "Bearer " + token },
+    });
+  } catch (error: any) {
+    throw fail("unavailable", tr("Can't reach your Navidrome server.") + " " + error.message);
+  }
+  if (response.status === 401 || response.status === 403) {
+    throw fail("signIn", tr("Navidrome refused the username or password."));
+  }
+  if (!response.ok) {
+    throw fail("unavailable", tr("Navidrome answered with an error.") + " (" + response.status + ")");
+  }
+  return response.json();
+}
+
 export async function call(method: string, params?: Record<string, unknown>) {
   let response: Response;
   try {

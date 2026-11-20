@@ -1,12 +1,12 @@
 {
   "name": "mygo-music-navidrome",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "type": "module",
   "scripts": {
     "build": "tsx scripts/build.ts",
     "pack": "vp pack",
     "typecheck": "tsc -p tsconfig.json && tsc -p tsconfig.tools.json",
-    "lint": "vp lint",
+    "lint": "vp lint -f default",
     "format": "vp fmt",
     "format:check": "vp fmt --check",
     "test:plugin": "node --import tsx --test tests/*.test.ts",

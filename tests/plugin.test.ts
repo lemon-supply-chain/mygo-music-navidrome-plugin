@@ -105,10 +105,72 @@ test("full plugin flow", async () => {
   };
 
   const requests: { method: string; params: URLSearchParams }[] = [];
-  const server = createServer((request, response) => {
+  const nativeRequests: { params: URLSearchParams; authorization: string }[] = [];
+  const nativeArtistRequests: { params: URLSearchParams; authorization: string }[] = [];
+  const nativeLogins: any[] = [];
+  const ownNative = Array.from({ length: 55 }, (_, index) => ({
+    id: index === 0 ? "pl1" : `own${index}`,
+    name: index === 0 ? "Mix" : `Own ${index}`,
+    comment: "A mix",
+    ownerId: "user-1",
+    ownerName: "me",
+    songCount: 2,
+  }));
+  const sharedNative = Array.from({ length: 25 }, (_, index) => ({
+    id: `shared${index}`,
+    name: `Shared ${index}`,
+    comment: "",
+    ownerId: `owner-${index}`,
+    ownerName: "someone-else",
+    songCount: 2,
+  }));
+  const allNative = ownNative.concat(sharedNative);
+  const nativeArtists = Array.from({ length: 51 }, (_, index) => ({
+    id: `ar${index + 1}`,
+    name: index === 0 ? "Artist One" : `Artist ${index + 1}`,
+  }));
+  const server = createServer(async (request, response) => {
     const url = new URL(request.url!, "http://127.0.0.1");
     const method = url.pathname.startsWith("/rest/") ? url.pathname.slice(6).replace(/\.view$/, "") : "";
     const params = url.searchParams;
+
+    if (url.pathname === "/auth/login") {
+      let body = "";
+      for await (const chunk of request) body += chunk;
+      nativeLogins.push(JSON.parse(body));
+      response.writeHead(200, { "content-type": "application/json" });
+      response.end(JSON.stringify({ id: "user-1", token: "native-token" }));
+      return;
+    }
+    if (url.pathname === "/api/playlist") {
+      nativeRequests.push({
+        params,
+        authorization: String(request.headers["x-nd-authorization"] || ""),
+      });
+      const start = Number(params.get("_start") || 0);
+      const end = Number(params.get("_end") || start + 50);
+      const entries = params.get("owner_id") === "user-1" ? ownNative : allNative;
+      response.writeHead(200, { "content-type": "application/json" });
+      response.end(JSON.stringify(entries.slice(start, end)));
+      return;
+    }
+    if (url.pathname === "/api/artist") {
+      nativeArtistRequests.push({
+        params,
+        authorization: String(request.headers["x-nd-authorization"] || ""),
+      });
+      if (params.get("missing") !== "false") {
+        response.writeHead(404);
+        response.end("not found");
+        return;
+      }
+      const start = Number(params.get("_start") || 0);
+      const end = Number(params.get("_end") || start + 50);
+      response.writeHead(200, { "content-type": "application/json" });
+      response.end(JSON.stringify(nativeArtists.slice(start, end)));
+      return;
+    }
+
     requests.push({ method, params });
 
     const send = (body: any) => {
@@ -284,6 +346,33 @@ test("full plugin flow", async () => {
     assert.equal(lists[0].id, "pl:pl1");
     assert.equal(lists[0].mine, true);
     assert.equal(lists[0].trackCount, 2);
+    assert.equal(lists.length, 75);
+    assert.equal(lists.filter((list: any) => list.mine).length, 55);
+    assert.equal(lists.filter((list: any) => !list.mine).length, 20);
+    assert.equal(lists.at(-1).id, "pl:shared19");
+    assert.deepEqual(nativeLogins, [{ username: "me", password: "secret" }]);
+    assert.ok(nativeRequests.every((request) => request.authorization === "Bearer native-token"));
+    assert.ok(nativeRequests.every((request) => request.params.get("_sort") === "name"));
+    assert.ok(nativeRequests.every((request) => request.params.get("_order") === "ASC"));
+    const ownRequests = nativeRequests.filter((request) => request.params.get("owner_id") === "user-1");
+    assert.deepEqual(
+      ownRequests.map((request) => [request.params.get("_start"), request.params.get("_end")]),
+      [
+        ["0", "50"],
+        ["50", "100"],
+      ],
+    );
+    const sharedRequests = nativeRequests.filter((request) => !request.params.get("owner_id"));
+    assert.deepEqual(
+      sharedRequests.map((request) => [request.params.get("_start"), request.params.get("_end")]),
+      [
+        ["0", "20"],
+        ["20", "40"],
+        ["40", "60"],
+        ["60", "80"],
+      ],
+    );
+    assert.equal(requests.filter((request) => request.method === "getPlaylists").length, 0);
 
     const one = await plugin.playlist({ id: "pl:pl1" });
     assert.equal(one.tracks.length, 2);
@@ -438,6 +527,22 @@ test("full plugin flow", async () => {
 
     const artistsPage = await plugin.browse({ page: "artists" });
     assert.equal(artistsPage.sections[0].artists[0].id, "ar:ar1");
+    assert.equal(artistsPage.sections[0].artists.length, 50);
+    assert.equal(artistsPage.sections[0].morePage, "artists:50");
+    const artistsPageTwo = await plugin.browse({ page: "artists:50" });
+    assert.equal(artistsPageTwo.sections[0].artists.length, 1);
+    assert.equal(artistsPageTwo.sections[0].artists[0].id, "ar:ar51");
+    assert.equal(artistsPageTwo.sections[0].morePage, undefined);
+    assert.deepEqual(
+      nativeArtistRequests.map((request) => [request.params.get("_start"), request.params.get("_end")]),
+      [
+        ["0", "50"],
+        ["50", "100"],
+      ],
+    );
+    assert.ok(nativeArtistRequests.every((request) => request.authorization === "Bearer native-token"));
+    assert.ok(nativeArtistRequests.every((request) => request.params.get("missing") === "false"));
+    assert.equal(requests.filter((request) => request.method === "getArtists").length, 0);
 
     const albumPageTwo = await plugin.browse({ page: "albums:newest:0" });
     assert.equal(albumPageTwo.sections[0].albums[0].id, "al:al1");

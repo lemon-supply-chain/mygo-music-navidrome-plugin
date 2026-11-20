@@ -1,5 +1,6 @@
-import { call, coverURL, pack, rawId, username } from "./api";
+import { call, coverURL, pack, rawId, username, nativeList, nativeLogin } from "./api";
 import { toTrack } from "./catalog";
+import { PAGE_SIZE, SHARED_PLAYLISTS_LIMIT } from "./constants";
 import type { Playlist } from "./types";
 
 export function toPlaylist(playlist: any, withTracks?: boolean): Playlist {
@@ -18,8 +19,47 @@ export function toPlaylist(playlist: any, withTracks?: boolean): Playlist {
 }
 
 export async function playlists(): Promise<Playlist[]> {
-  const data = await call("getPlaylists");
-  return ((data.playlists && data.playlists.playlist) || []).map((playlist: any) => toPlaylist(playlist));
+  const auth = await nativeLogin();
+  const own: any[] = [];
+  for (let start = 0; ; start += PAGE_SIZE) {
+    const page = await nativeList(auth.token, "/api/playlist", {
+      owner_id: auth.id,
+      _sort: "name",
+      _order: "ASC",
+      _start: start,
+      _end: start + PAGE_SIZE,
+    });
+    own.push(...page);
+    if (page.length < PAGE_SIZE) break;
+  }
+
+  const shared: any[] = [];
+  // Some servers expose tens of thousands of shared playlists. Stop after 20 until the host supports pagination.
+  for (let start = 0; shared.length < SHARED_PLAYLISTS_LIMIT; start += SHARED_PLAYLISTS_LIMIT) {
+    const page = await nativeList(auth.token, "/api/playlist", {
+      _sort: "name",
+      _order: "ASC",
+      _start: start,
+      _end: start + SHARED_PLAYLISTS_LIMIT,
+    });
+    for (const entry of page) {
+      if (entry.ownerId !== auth.id && shared.length < SHARED_PLAYLISTS_LIMIT) shared.push(entry);
+    }
+    if (page.length < SHARED_PLAYLISTS_LIMIT) break;
+  }
+
+  return own.concat(shared).map((entry) => {
+    const out = toPlaylist({
+      id: entry.id,
+      name: entry.name,
+      comment: entry.comment,
+      owner: entry.ownerName,
+      songCount: entry.songCount,
+      coverArt: "pl-" + entry.id,
+    });
+    out.mine = entry.ownerId === auth.id;
+    return out;
+  });
 }
 
 export async function playlist({ id }: { id: string }): Promise<Playlist> {

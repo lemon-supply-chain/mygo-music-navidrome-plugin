@@ -1,0 +1,45 @@
+[tools]
+rust = "stable"
+
+[tasks.clean]
+description = "Remove build output: dist/, cargo target/ and the generated helper binaries in bin/"
+run = """
+rm -rf dist
+rm -rf native/navidrome-login/target
+rm -f bin/navidrome-login-*
+"""
+
+[tasks."build:tools"]
+description = "Build the navidrome-login helper for the host platform into bin/"
+run = """
+set -euo pipefail
+case "$(uname -s)-$(uname -m)" in
+  Darwin-arm64)  goos=darwin  goarch=arm64 ;;
+  Darwin-x86_64) goos=darwin  goarch=amd64 ;;
+  Linux-aarch64) goos=linux   goarch=arm64 ;;
+  Linux-x86_64)  goos=linux   goarch=amd64 ;;
+  *) echo "unsupported host: $(uname -s)-$(uname -m)" >&2; exit 1 ;;
+esac
+cargo build --release --manifest-path native/navidrome-login/Cargo.toml
+mkdir -p bin
+cp native/navidrome-login/target/release/navidrome-login "bin/navidrome-login-${goos}-${goarch}"
+echo "built bin/navidrome-login-${goos}-${goarch}"
+"""
+
+[tasks."build:tools:all"]
+description = "Cross-build the navidrome-login helper for every macOS target into bin/"
+run = """
+set -euo pipefail
+[ "$(uname -s)" = Darwin ] || { echo "build:tools:all only runs on macOS" >&2; exit 1; }
+for target in aarch64-apple-darwin x86_64-apple-darwin; do
+  case "$target" in
+    aarch64-apple-darwin) arch=arm64 ;;
+    x86_64-apple-darwin)  arch=amd64 ;;
+  esac
+  rustup target add "$target" >/dev/null
+  cargo build --release --manifest-path native/navidrome-login/Cargo.toml --target "$target"
+  mkdir -p bin
+  cp native/navidrome-login/target/"$target"/release/navidrome-login "bin/navidrome-login-darwin-${arch}"
+  echo "built bin/navidrome-login-darwin-${arch}"
+done
+"""

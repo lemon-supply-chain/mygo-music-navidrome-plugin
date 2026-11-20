@@ -138,6 +138,13 @@ Navidrome 不支持 Lucene 语法，只做简单的自动补全式匹配。
 | `updatePlaylist` | `playlistId`、`name`、`comment`、`public`、`songIdToAdd`（可重复）、`songIndexToRemove`（可重复） | 空响应                                                    |
 | `deletePlaylist` | `id`                                                                                              | 空响应                                                    |
 
+Subsonic `getPlaylists` 不读取分页参数。Navidrome 另有 Native API
+`GET /api/playlist?_start=0&_end=20`，支持 `_start` / `_end`（`_end` 为开区间）、
+`_sort` / `_order` 和筛选参数，但它不是同一个接口：需要先 `POST /auth/login`
+获取 JWT，再通过 `X-ND-Authorization: Bearer <token>` 认证，返回字段也使用
+`ownerName` / `ownerId` 等 Native API 名称。不能只给 Subsonic 请求追加 `_start` /
+`_end` 就获得服务端分页。艺术家列表与官方 UI 一样附带 `missing=false`。
+
 Navidrome 的 `songIndexToRemove` 是 0 起的播放列表位置，多个值按原列表位置一次性删除。
 `updatePlaylist` 可以在同一次请求里先删后加，所以重排整张列表可以一次完成：
 
@@ -310,24 +317,25 @@ ffmpeg 处理：
 
 ### 能力映射
 
-| MyGo 导出                                                                         | Navidrome 端点                                                          |
-| --------------------------------------------------------------------------------- | ----------------------------------------------------------------------- |
-| `home`                                                                            | `getAlbumList2` newest/recent/frequent/starred；`getRandomSongs`        |
-| `browse`                                                                          | `getArtists`、`getGenres`、`getAlbumList2`、`getSongsByGenre`           |
-| `search`                                                                          | `search3`；播放列表在本地按名称过滤                                     |
-| `recent`                                                                          | `getAlbumList2?type=recent` 后取前 3 张专辑的歌曲                       |
-| `played`                                                                          | `scrobble`                                                              |
-| `liked` / `isLiked` / `like`                                                      | `getStarred2`、`star`、`unstar`                                         |
-| `album`                                                                           | `getAlbum`                                                              |
-| `artist`                                                                          | `getArtist`，再取前 4 张专辑的歌曲                                      |
-| `saveAlbum` / `savedAlbums`                                                       | `star`/`unstar`、`getAlbumList2?type=starred`                           |
-| `playlists` / `playlist` / `createPlaylist` / `renamePlaylist` / `deletePlaylist` | 同名端点                                                                |
-| `addToPlaylist` / `removeFromPlaylist` / `movePlaylistTrack`                      | `updatePlaylist`                                                        |
-| `stations` / `stationNext` / `stream`（网络电台）                                 | `getInternetRadioStations`                                              |
-| `stations` / `stationNext`（无尽电台）                                            | 内置 `rd:__endless__`；`getRandomSongs?size=500`                        |
-| `lyrics`                                                                          | Better Lyrics API；回退 `getLyricsBySongId`、`getLyrics`                |
-| `stream`                                                                          | `getSong` 判断后缀，再拼 `stream` URL                                   |
-| 封面                                                                              | `getCoverArt?id=<coverArt 或实体 id>&size={size}`，由应用按显示尺寸替换 |
+| MyGo 导出                                                           | Navidrome 端点                                                                                 |
+| ------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| `home`                                                              | `getAlbumList2` newest/recent/frequent/starred；`getRandomSongs`                               |
+| `browse`                                                            | 艺术家用 Native `/api/artist` 范围分页；其余用 `getGenres`、`getAlbumList2`、`getSongsByGenre` |
+| `search`                                                            | `search3`；播放列表在本地按名称过滤                                                            |
+| `recent`                                                            | `getAlbumList2?type=recent` 后取前 3 张专辑的歌曲                                              |
+| `played`                                                            | `scrobble`                                                                                     |
+| `liked` / `isLiked` / `like`                                        | `getStarred2`、`star`、`unstar`                                                                |
+| `album`                                                             | `getAlbum`                                                                                     |
+| `artist`                                                            | `getArtist`，再取前 4 张专辑的歌曲                                                             |
+| `saveAlbum` / `savedAlbums`                                         | `star`/`unstar`、`getAlbumList2?type=starred`                                                  |
+| `playlists`                                                         | Native `/auth/login` + `/api/playlist` 范围分页；自己的全部，共享最多 20 条                    |
+| `playlist` / `createPlaylist` / `renamePlaylist` / `deletePlaylist` | 同名 Subsonic 端点                                                                             |
+| `addToPlaylist` / `removeFromPlaylist` / `movePlaylistTrack`        | `updatePlaylist`                                                                               |
+| `stations` / `stationNext` / `stream`（网络电台）                   | `getInternetRadioStations`                                                                     |
+| `stations` / `stationNext`（无尽电台）                              | 内置 `rd:__endless__`；`getRandomSongs?size=500`                                               |
+| `lyrics`                                                            | Better Lyrics API；回退 `getLyricsBySongId`、`getLyrics`                                       |
+| `stream`                                                            | `getSong` 判断后缀，再拼 `stream` URL                                                          |
+| 封面                                                                | `getCoverArt?id=<coverArt 或实体 id>&size={size}`，由应用按显示尺寸替换                        |
 
 首页的“猜你喜欢”取常听和收藏专辑里出现最多的流派，再用
 `getRandomSongs?genre=<流派>` 取 12 首歌；流派歌曲不足时用随机歌曲补足。
